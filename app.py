@@ -27,7 +27,7 @@ DEFAULT_STRATEGIES = {
     "design_thinking": "You are DT4STEMGURU-AI Powered PD APP, an AI-Powered Design Thinking Coach for Secondary STEM Teachers in India (NEP 2020 aligned). You MUST answer in 5 steps: 1.EMPATHIZE (student pain point), 2.DEFINE (problem statement), 3.IDEATE (3 creative ideas with 1 AI tool like PhET, GeoGebra, ChatGPT, Canva AI), 4.PROTOTYPE (40-min classroom activity), 5.TEST (assessment rubric). Use simple English. End every answer with: \n\n---\n© S Sachinkumar & Prof.G.R.Angadi, Dept. of Education, Central University of Karnataka",
     "tpack_ai": "You are AI-Powered TPACK Expert for STEM Teachers. Explain Content, Pedagogy, Technology integration. Give 1 AI tool example and how to use. End with © S Sachinkumar & Prof.G.R.Angadi, CUK",
     "nep2020": "You are NEP 2020 Aligned PD Coach for STEM Teachers. Explain answer as per NEP 2020 principles - experiential, inquiry, multidisciplinary. End with © S Sachinkumar & Prof.G.R.Angadi, CUK",
-    "lesson_ai": "You are AI Lesson Planner for Secondary STEM. Give 40-min lesson plan with Learning Outcomes, Materials, AI Tool Integration, 5E Model, Assessment. End with © S Sachinkumar & Prof.G.R.Angadi, CUK",
+    "lesson_ai": "You are AI Lesson Planner for Secondary STEM. Give 40-min lesson plan with Learning Outcomes, Materials, AI Tool Integration, 5E F, Assessment. End with © S Sachinkumar & Prof.G.R.Angadi, CUK",
     "mentoring_ai": "You are AI Mentor for STEM Teachers. Give empathy, classroom story, growth mindset tip, action research idea. End with © S Sachinkumar & Prof.G.R.Angadi, CUK"
 }
 
@@ -93,8 +93,8 @@ def home():
 @limiter.limit("15 per minute")
 def chat():
     q=request.args.get("q","").strip()
-    if not is_safe(q): return jsonify({"answer":"Invalid input. Please ask related to STEM teaching pedagogy."}),400
-    if not client: return jsonify({"answer":"Server Error: GEMINI_API_KEY not set in Render Environment. Please contact Admin."}),500
+    if not is_safe(q): return jsonify({"answer":"Invalid input."}),400
+    if not client: return jsonify({"answer":"Server Error: GEMINI_API_KEY not set."}),500
 
     cat=get_category(q)
     analytics["total_questions"]+=1; analytics["categories"][cat]+=1; analytics["daily_count"][str(datetime.now().date())]+=1
@@ -104,28 +104,22 @@ def chat():
     full_prompt = f"{prompt}\n\nTeacher Question: {q}"
 
     try:
-        # NEW SDK - gemini-2.0-flash is stable and free tier friendly
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-flash-latest", # ALWAYS WORKS - auto points to latest
             contents=full_prompt
         )
-        answer_text = response.text
-        if not answer_text:
-            answer_text = "AI could not generate. Please rephrase question."
-        return jsonify({"answer": answer_text})
-
+        return jsonify({"answer": response.text})
     except Exception as e:
-        err = str(e)
-        print(f"AI ERROR: {err}")
-        # Fallback to older model if 2.0 fails
+        print(f"AI ERROR 1: {e}")
         try:
             response2 = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash", # Fallback - stable till June 2026
                 contents=full_prompt
             )
             return jsonify({"answer": response2.text})
         except Exception as e2:
-            return jsonify({"answer": f"AI is temporarily busy. Debug: {err[:200]} | Please check if GEMINI_API_KEY is valid in Render. (Error shown only to you for debugging)"}),500
+            print(f"AI ERROR 2: {e2}")
+            return jsonify({"answer": f"AI error: {str(e)[:250]}"}),500
 
 @app.route("/admin")
 def admin():
