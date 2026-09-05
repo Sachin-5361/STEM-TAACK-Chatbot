@@ -1,0 +1,10 @@
+{
+  "name": "STEM PD AI Buddy - CUK",
+  "short_name": "STEM PD AI",
+  "description": "AI Powered Design Thinking Chatbot for Secondary STEM Teachers Professional Development by S Sachinkumar & Prof.G.R.Angadi, CUK",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "author": "S Sachinkumar & Prof.G.R.Angadi, Central University of Karnataka"
+}
