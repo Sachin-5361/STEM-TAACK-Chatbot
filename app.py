@@ -99,22 +99,6 @@ def ask_groq_api(question, strategy_prompt):
     except Exception as e:
         print(f"Groq fail: {e}"); return None
 
-# --- GEMINI ---
-def ask_gemini_api(question, strategy_prompt):
-    if not gemini_client: return None
-    try:
-        format_hint = random.choice(["Use markdown table", "Use paragraph + bullets", "Use table + image markdown", "Use mixed rich format"])
-        prompt = f"{strategy_prompt}\n\nFORMAT: {format_hint}. For visual topics include image markdown![diagram](https://image.pollinations.ai/prompt/{question} educational diagram). Question: {question}"
-        resp = gemini_client.models.generate_content(model="gemini-flash-latest", contents=prompt, config=types.GenerateContentConfig(temperature=0.88, max_output_tokens=1800))
-        if resp.text: return resp.text
-    except Exception as e:
-        print(f"Gemini fail: {e}")
-        try:
-            resp2 = gemini_client.models.generate_content(model="gemini-2.5-flash", contents=prompt, config=types.GenerateContentConfig(temperature=0.88))
-            return resp2.text
-        except: return None
-    return None
-
 @app.route("/")
 def home():
     analytics["total_visits"]+=1; save_to_sheet("VISIT")
