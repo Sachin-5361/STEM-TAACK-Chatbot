@@ -13,7 +13,7 @@ print(f"Groq Key Present: {bool(GROQ_KEY)}")
 if GROQ_KEY:
     print("✅ Groq Ready - 1000 answers/day free")
 
-STRATEGY_PROMPT = """You are SrujanaSTEM AI, expert STEM Coach for Secondary Teachers in India.
+STRATEGY_PROMPT = """You are DT4STEM GURU, expert STEM Coach for Secondary Teachers in India.
 You know 1000+ EdTech tools from internet (NASA, Stellarium, BioDigital, ChemCollective, Desmos, Tinkercad, etc.).
 
 For Teacher Question, you MUST:
