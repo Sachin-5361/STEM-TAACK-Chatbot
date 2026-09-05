@@ -1,5 +1,4 @@
 # COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, CUK
-# FINAL - GROQ ONLY - Model Fixed: openai/gpt-oss-20b - No Gemini - Rich Format
 import os, json, requests, random, urllib.parse
 from flask import Flask, request, jsonify, render_template_string, make_response
 from flask_limiter import Limiter
