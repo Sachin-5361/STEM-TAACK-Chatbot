@@ -1,18 +1,17 @@
 # COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, CUK
-import os, json, requests, random, urllib.parse
+import os, requests, random, urllib.parse
 from flask import Flask, request, jsonify, render_template_string, make_response
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
-# --- ONLY ONE KEY NEEDED ---
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 
 print(f"=== DT4STEM Guru AI Starting ===")
-print(f"Groq Key Present: {bool(GROQ_KEY)} | Length: {len(GROQ_KEY) if GROQ_KEY else 0}")
+print(f"Groq Key Present: {bool(GROQ_KEY)}")
 if GROQ_KEY:
-    print("✅ Groq Ready - 1000 answers/day free, no need to change per answer")
+    print("✅ Groq Ready - 1000 answers/day free")
 
 STRATEGY_PROMPT = """You are SrujanaSTEM AI, expert STEM Coach for Secondary Teachers in India.
 You know 1000+ EdTech tools from internet (NASA, Stellarium, BioDigital, ChemCollective, Desmos, Tinkercad, etc.).
@@ -23,11 +22,11 @@ For Teacher Question, you MUST:
     * Process (water cycle) = FLOWCHART using -> arrows + TABLE
     * Visual (heart, solar system, atom) = PARAGRAPH + IMAGE markdown:![diagram](https://image.pollinations.ai/prompt/TOPIC educational diagram colorful labeled)
     * Theory = PARAGRAPH + BULLETS + TABLE
-- Choose BEST tools for THIS topic from internet. Not fixed. Justify.
+- Choose BEST tools for THIS topic from internet. Not fixed.
 - Structure:
   **1. EMPATHIZE:** student misconception
-  **2. DEFINE:** problem statement
-  **3. IDEATE:** | Idea | Tool | Why best for this topic |
+  **2. DEFINE:** problem
+  **3. IDEATE:** | Idea | Tool | Why best |
   **4. PROTOTYPE:** | Time | Activity | Tool |
   **5. TEST:** rubric table
 - Use markdown tables. If visual, MUST include image markdown.
@@ -37,17 +36,15 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["200 per hour"], 
 
 def ask_groq(question):
     if not GROQ_KEY:
-        return "⚠️ **GROQ_API_KEY not found!**\n\nGo to Render > Environment > Add Variable:\nKey: GROQ_API_KEY\nValue: gsk_... (from https://console.groq.com/keys)\nThen Save Changes > Manual Deploy."
+        return "⚠️ GROQ_API_KEY not found! Add in Render Environment: GROQ_API_KEY = gsk_... from https://console.groq.com/keys"
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-
-    # New working models in Aug 2026 - Groq retired old llama models
     models_to_try = ["openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-120b"]
 
     format_type = random.choice([
-        "Use MARKDOWN TABLE for IDEATE and PROTOTYPE sections. Include image markdown for visual topics.",
-        "Use PARAGRAPH + BULLETS + TABLE mixed format. Add image if visual.",
+        "Use MARKDOWN TABLE for IDEATE and PROTOTYPE. Include image markdown for visual topics.",
+        "Use PARAGRAPH + BULLETS + TABLE mixed format.",
         "Use TABLE for comparison and FLOWCHART with -> arrows."
     ])
 
@@ -58,29 +55,23 @@ def ask_groq(question):
             payload = {
                 "model": model_name,
                 "messages": [
-                    {"role": "system", "content": f"{STRATEGY_PROMPT}\nFORMAT: {format_type}\nFor image use exactly:![{question}]({image_url})\nChoose best tools for {question} from internet."},
-                    {"role": "user", "content": f"Question: {question}. Give rich formatted unique answer with table and image markdown if needed."}
+                    {"role": "system", "content": f"{STRATEGY_PROMPT}\nFORMAT: {format_type}\nFor image use:![{question}]({image_url})"},
+                    {"role": "user", "content": f"Question: {question}. Give rich formatted unique answer."}
                 ],
-                "temperature": 0.9,
-                "max_tokens": 2000
+                "temperature": 0.9, "max_tokens": 2000
             }
             r = requests.post(url, headers=headers, json=payload, timeout=30)
             if r.status_code == 200:
-                print(f"✅ Success with model: {model_name}")
                 return r.json()["choices"][0]["message"]["content"]
-            else:
-                print(f"Model {model_name} failed {r.status_code}: {r.text[:300]}")
-        except Exception as e:
-            print(f"Model {model_name} exception: {e}")
-            continue
+        except: continue
 
-    return f"❌ Groq API Error: All models tried failed. Your key {GROQ_KEY[:12]}... may be invalid. Generate new from https://console.groq.com/keys and add in Render Environment as GROQ_API_KEY, then Save."
+    return "❌ Groq Error. Check GROQ_API_KEY in Render."
 
 @app.route("/")
 def home():
     html = """
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DT4STEM Guru AI - Final</title>
+<title>DT4STEM Guru AI</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
 body{font-family:Segoe UI,Arial;max-width:950px;margin:auto;background:#f6f7f9;line-height:1.7}
@@ -92,27 +83,23 @@ button{padding:14px;border-radius:10px;border:none;background:#0f172a;color:#fff
 #ans table{border-collapse:collapse;width:100%;margin:12px 0} #ans th,#ans td{border:1px solid #cbd5e1;padding:8px;text-align:left} #ans th{background:#0f172a;color:#fff}
 #ans img{max-width:100%;border-radius:12px;margin:14px 0;box-shadow:0 2px 10px rgba(0,0,0,0.2);border:1px solid #ddd}
 footer{background:#0f172a;color:#cbd5e1;text-align:center;padding:16px;font-size:11px;border-radius:16px 16px 0 0}
-.badge{background:#10b981;color:#fff;padding:5px 12px;border-radius:20px;font-size:11px;display:inline-block;margin:5px}
 </style></head>
 <body>
 <header>
 <h2 style="margin:0">DT4STEM Guru AI 🤖</h2>
 <p style="margin:6px 0">Paragraph • Table • Images • Flowchart | Rich Format</p>
-<span class="badge">✅ GROQ ONLY - Model: gpt-oss-20b - Fixed 404 Error</span><br>
 <small>© S Sachinkumar & Prof.G.R.Angadi, CUK</small>
 </header>
 <div id=box>
-<input id='q' placeholder='Try: human heart diagram, mitosis vs meiosis table, water cycle flowchart...'>
-<button onclick='ask()'>🚀 Ask AI Coach - Get Rich Answer</button>
-<div id='ans'>Your rich answer with paragraph + table + image will appear here...<br><br>
-<b>One GROQ_API_KEY = All answers</b> - No need to change API per question!<br>
-Images auto-generated FREE via Pollinations AI - No key needed.</div>
+<input id='q' placeholder='Try: human heart diagram, mitosis vs meiosis table, water cycle...'>
+<button onclick='ask()'>🚀 Ask AI Coach</button>
+<div id='ans'>Your rich answer with paragraph + table + image will appear here...</div>
 </div>
-<footer>COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, CUK<br>Only 1 API Needed: GROQ_API_KEY (Free) | Images: FREE</footer>
+<footer>COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, Dept. of Education, CUK</footer>
 <script>
 async function ask(){
  let q=document.getElementById('q').value.trim(); if(!q){alert('Type question');return}
- document.getElementById('ans').innerHTML='⏳ Generating rich answer (paragraph + table + image) for: <b>'+q+'</b>... Wait 5 sec...';
+ document.getElementById('ans').innerHTML='⏳ Generating rich answer for: <b>'+q+'</b>... Please wait 5 sec...';
  try{
   let r=await fetch('/chat?q='+encodeURIComponent(q));
   let d=await r.json();
@@ -129,14 +116,9 @@ async function ask(){
 @limiter.limit("20 per minute")
 def chat():
     q = request.args.get("q","").strip()
-    if not q:
-        return jsonify({"answer":"Please type a question"}),400
+    if not q: return jsonify({"answer":"Please type a question"}),400
     answer = ask_groq(q)
     return jsonify({"answer": answer})
-
-@app.route("/health")
-def health():
-    return f"OK - Groq Key: {bool(GROQ_KEY)} - Model: openai/gpt-oss-20b - No other API needed"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT",10000)))
