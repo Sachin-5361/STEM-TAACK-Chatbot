@@ -1,5 +1,4 @@
 Flask
 Flask-Limiter
-google-genai
 gunicorn
 requests
