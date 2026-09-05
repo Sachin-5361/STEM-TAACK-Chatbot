@@ -12,8 +12,7 @@ from google.genai import types
 
 app = Flask(__name__)
 
-GEMINI_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
-GROQ_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+print(f"DEBUG: Groq key exists? {bool(GROQ_KEY)} Length: {len(GROQ_KEY)}")
 GOOGLE_SHEET_URL = os.environ.get("GOOGLE_SHEET_URL", "").strip()
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "CUK_Secure_2026")
 
