@@ -6,50 +6,75 @@ from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
 
+# --- YOUR PREVIOUS KEY - Same as before ---
 GROQ_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 
 print(f"=== DT4STEM Guru AI Starting ===")
 print(f"Groq Key Present: {bool(GROQ_KEY)}")
-if GROQ_KEY:
-    print("✅ Groq Ready - 1000 answers/day free")
 
-STRATEGY_PROMPT = """You are DT4STEM GURU, expert STEM Coach for Secondary Teachers in India.
-You know 1000+ EdTech tools from internet (NASA, Stellarium, BioDigital, ChemCollective, Desmos, Tinkercad, etc.).
+# --- STRICT DESIGN THINKING PROMPT ---
+STRATEGY_PROMPT = """
+You are SrujanaSTEM AI - Expert STEM Coach for Secondary Teachers in India.
+You MUST follow Design Thinking 5 steps in EXACT order with HEADINGS. No step can be skipped.
 
-For Teacher Question, you MUST:
-- Choose BEST format based on topic:
-    * Comparison (mitosis vs meiosis) = MARKDOWN TABLE
-    * Process (water cycle) = FLOWCHART using -> arrows + TABLE
-    * Visual (heart, solar system, atom) = PARAGRAPH + IMAGE markdown:![diagram](https://image.pollinations.ai/prompt/TOPIC educational diagram colorful labeled)
-    * Theory = PARAGRAPH + BULLETS + TABLE
-- Choose BEST tools for THIS topic from internet. Not fixed.
-- Structure:
-  **1. EMPATHIZE:** student misconception
-  **2. DEFINE:** problem
-  **3. IDEATE:** | Idea | Tool | Why best |
-  **4. PROTOTYPE:** | Time | Activity | Tool |
-  **5. TEST:** rubric table
-- Use markdown tables. If visual, MUST include image markdown.
-End with © S Sachinkumar & Prof.G.R.Angadi, CUK"""
+STRUCTURE (MANDATORY - Use these exact headings):
+
+### 1. EMPATHIZE:
+- Who is learner? What is their misconception/confusion about [TOPIC]?
+- 2-3 bullet points.
+
+### 2. DEFINE:
+- Write clear Problem Statement: "How might we help students understand [TOPIC] using [best tools]?"
+
+### 3. IDEATE:
+- You know 1000+ tools (NASA Eyes, Stellarium, BioDigital Human, ChemCollective, PhET, Desmos, Tinkercad, Merge Cube, Google Earth, etc.)
+- CHOOSE BEST 3 tools specifically for THIS topic.
+- MUST give in MARKDOWN TABLE format:
+| Idea No | Teaching Idea | Tool Name | Why This Tool is Best for This Topic? |
+|---|---|---|---|
+| 1 |... |... |... |
+
+### 4. PROTOTYPE:
+- 40-min lesson plan
+- MUST give in MARKDOWN TABLE format:
+| Time | Activity | Tool Used | Teacher Action |
+|---|---|---|---|
+| 0-5 min |... |... |... |
+| 5-15 min |... |... |... |
+
+### 5. TEST:
+- Assessment rubric
+- MUST give in MARKDOWN TABLE format:
+| Criteria | Excellent | Good | Needs Improvement |
+|---|---|---|---|
+|... |... |... |... |
+
+IMAGE RULE:
+- If topic is visual (heart, cell, atom, solar system, water cycle, etc.), include ONE clean diagram at top.
+- Image must have NO TEXT inside. Labels will be in table below.
+- After image, give Label Table: | No | Part | Function |
+
+FORMATTING:
+- Use bold headings, bullet points, and tables.
+- Choose format based on topic but STEPS 1-5 are compulsory.
+"""
 
 limiter = Limiter(get_remote_address, app=app, default_limits=["200 per hour"], storage_uri="memory://")
 
 def ask_groq(question):
     if not GROQ_KEY:
-        return "⚠️ GROQ_API_KEY not found!"
+        return "⚠️ **GROQ_API_KEY missing!** Add in Render > Environment > GROQ_API_KEY = gsk_... from https://console.groq.com/keys"
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-    models_to_try = ["openai/gpt-oss-20b", "llama-3.1-8b-instant"]
 
-    # --- NEW: NO-TEXT IMAGE PROMPT - Solves gibberish labels ---
-    no_text_prompt = f"{question} anatomy, clean scientific illustration, NO TEXT, NO LABELS, NO WORDS, white background, high detail, 4k, textbook style"
+    # Working models - 2026
+    models_to_try = ["openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-120b"]
+
+    # --- CLEAN IMAGE - NO TEXT, NO GIBBERISH ---
+    no_text_prompt = f"{question} anatomy clean scientific illustration, NO TEXT, NO LABELS, NO WORDS, NO LETTERS, white background, ultra detailed, textbook style, 4k"
     encoded = urllib.parse.quote(no_text_prompt)
-    # Clean image without any writing
     clean_image_url = f"https://image.pollinations.ai/prompt/{encoded}?model=flux&width=1024&height=1024&enhance=true&nologo=true&seed={random.randint(1,99999)}"
-
-    # For accurate labeled diagrams, use real Wikimedia image (optional fallback)
-    # Groq will also provide labels in table, so no need for text in image
 
     for model_name in models_to_try:
         try:
@@ -58,25 +83,29 @@ def ask_groq(question):
                 "messages": [
                     {"role": "system", "content": f"""{STRATEGY_PROMPT}
 
-CRITICAL IMAGE RULE TO FIX BLURRY TEXT:
-- Generate image WITHOUT any text/labels/words inside. Prompt is: {no_text_prompt}
-- Image markdown to use:![{question} Clean Diagram]({clean_image_url})
-- Then IMMEDIATELY after image, create a markdown table for labels:
-| Label No | Part Name | Function |
-| 1 |... |... |
-This way image is clear and labels are readable in table, not gibberish in image.
+IMAGE MARKDOWN TO USE (if visual topic):
+![{question} Clean Diagram - No Labels]({clean_image_url})
 
-If question is comparison like mitosis vs meiosis, skip image and give comparison table directly.
+After image, give labels in table if needed. Then start with ### 1. EMPATHIZE:
+
+MANDATORY: Follow 5 Design Thinking steps in order. Each step must have table where specified.
 """},
-                    {"role": "user", "content": f"Question: {question}. Give clean diagram (no text in image) + label table."}
+                    {"role": "user", "content": f"Teacher Question: {question}. Give answer with STRICT Design Thinking 5 steps (1. EMPATHIZE, 2. DEFINE, 3. IDEATE with table, 4. PROTOTYPE with table, 5. TEST with table). Include clean diagram if visual."}
                 ],
-                "temperature": 0.8, "max_tokens": 2200
+                "temperature": 0.8,
+                "max_tokens": 2500
             }
-            r = requests.post(url, headers=headers, json=payload, timeout=30)
+            r = requests.post(url, headers=headers, json=payload, timeout=35)
             if r.status_code == 200:
+                print(f"Success with {model_name}")
                 return r.json()["choices"][0]["message"]["content"]
-        except: continue
-    return "❌ Groq Error."
+            else:
+                print(f"Model {model_name} failed {r.status_code}")
+        except Exception as e:
+            print(f"Exception {e}")
+            continue
+
+    return "❌ Groq Error: Please check GROQ_API_KEY. Generate new from https://console.groq.com/keys"
 
 @app.route("/")
 def home():
@@ -85,39 +114,47 @@ def home():
 <title>DT4STEM Guru AI</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-body{font-family:Segoe UI,Arial;max-width:950px;margin:auto;background:#f6f7f9;line-height:1.7}
-header{background:#0f172a;color:#fff;padding:20px;text-align:center;border-radius:0 0 16px 16px}
-#box{background:#fff;margin:20px;padding:22px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
-input{width:100%;padding:14px;border-radius:10px;border:1px solid #ccc;margin:10px 0;box-sizing:border-box;font-size:15px}
-button{padding:14px;border-radius:10px;border:none;background:#0f172a;color:#fff;width:100%;font-weight:bold;cursor:pointer;font-size:15px}
-#ans{background:#f8fafc;padding:18px;border-radius:12px;margin-top:15px;border:1px solid #e2e8f0;min-height:120px}
-#ans table{border-collapse:collapse;width:100%;margin:12px 0} #ans th,#ans td{border:1px solid #cbd5e1;padding:8px;text-align:left} #ans th{background:#0f172a;color:#fff}
-#ans img{max-width:100%;border-radius:12px;margin:14px 0;box-shadow:0 2px 10px rgba(0,0,0,0.2);border:1px solid #ddd}
-footer{background:#0f172a;color:#cbd5e1;text-align:center;padding:16px;font-size:11px;border-radius:16px 16px 0 0}
+body{font-family:Segoe UI,Arial;max-width:980px;margin:auto;background:#f6f7f9;line-height:1.75}
+header{background:#0f172a;color:#fff;padding:22px;text-align:center;border-radius:0 0 16px 16px}
+#box{background:#fff;margin:20px;padding:22px;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,0.1)}
+input{width:100%;padding:14px;border-radius:10px;border:1px solid #cbd5e1;margin:10px 0;box-sizing:border-box;font-size:15px}
+button{padding:14px;border-radius:10px;border:none;background:#0f172a;color:#fff;width:100%;font-weight:bold;cursor:pointer;font-size:16px}
+#ans{background:#ffffff;padding:20px;border-radius:12px;margin-top:16px;border:1px solid #e2e8f0;min-height:150px}
+#ans table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px} #ans th,#ans td{border:1px solid #cbd5e1;padding:9px;text-align:left} #ans th{background:#0f172a;color:#fff}
+#ans img{max-width:100%;border-radius:14px;margin:16px 0;box-shadow:0 4px 12px rgba(0,0,0,0.15);border:1px solid #e2e8f0;display:block}
+#ans h3{color:#0f172a;border-bottom:2px solid #e2e8f0;padding-bottom:6px;margin-top:22px}
+footer{background:#0f172a;color:#94a3b8;text-align:center;padding:16px;font-size:11px;border-radius:16px 16px 0 0;margin-top:20px}
 </style></head>
 <body>
 <header>
 <h2 style="margin:0">DT4STEM Guru AI 🤖</h2>
-<p style="margin:6px 0">Paragraph • Table • Images • Flowchart | Rich Format</p>
+<p style="margin:8px 0 4px 0">Design Thinking • Paragraph • Table • Clean HD Diagram</p>
 <small>© S Sachinkumar & Prof.G.R.Angadi, CUK</small>
 </header>
 <div id=box>
-<input id='q' placeholder='Try: human heart diagram, mitosis vs meiosis table, water cycle...'>
+<input id='q' placeholder='Example: human heart, photosynthesis, newtons laws, mitosis vs meiosis...'>
 <button onclick='ask()'>🚀 Ask AI Coach</button>
-<div id='ans'>Your rich answer with paragraph + table + image will appear here...</div>
+<div id='ans'>
+<b>How it works:</b><br>
+• Answers follow <b>5 Design Thinking Steps</b>: EMPATHIZE → DEFINE → IDEATE (table) → PROTOTYPE (table) → TEST (table)<br>
+• Visual topics: HD clean diagram (no blurry text) + label table<br>
+• One GROQ_API_KEY works for all questions - no need to change
 </div>
-<footer>COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, Dept. of Education, CUK</footer>
+</div>
+<footer>COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, Dept. of Education, Central University of Karnataka<br>Powered by Groq AI + Pollinations HD (No text in image)</footer>
 <script>
 async function ask(){
- let q=document.getElementById('q').value.trim(); if(!q){alert('Type question');return}
- document.getElementById('ans').innerHTML='⏳ Generating rich answer for: <b>'+q+'</b>... Please wait 5 sec...';
+ let q=document.getElementById('q').value.trim();
+ if(!q){alert('Please type a question');return}
+ document.getElementById('ans').innerHTML='⏳ Generating Design Thinking lesson for: <b>'+q+'</b><br><br>Following 5 steps: Empathize, Define, Ideate, Prototype, Test... Please wait 6 sec...';
  try{
   let r=await fetch('/chat?q='+encodeURIComponent(q));
   let d=await r.json();
   document.getElementById('ans').innerHTML = marked.parse(d.answer);
-  window.scrollTo({top: document.getElementById('ans').offsetTop-20, behavior:'smooth'});
+  window.scrollTo({top: document.getElementById('ans').offsetTop-30, behavior:'smooth'});
  }catch(e){ document.getElementById('ans').innerHTML='Error: '+e; }
 }
+document.getElementById('q').addEventListener('keypress', function(e){ if(e.key==='Enter'){ask();} });
 </script>
 </body></html>
 """
@@ -130,6 +167,10 @@ def chat():
     if not q: return jsonify({"answer":"Please type a question"}),400
     answer = ask_groq(q)
     return jsonify({"answer": answer})
+
+@app.route("/health")
+def health():
+    return f"OK - Groq Ready: {bool(GROQ_KEY)} - Design Thinking Mode ON"
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT",10000)))
