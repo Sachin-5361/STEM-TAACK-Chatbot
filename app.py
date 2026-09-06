@@ -36,36 +36,48 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["200 per hour"], 
 
 def ask_groq(question):
     if not GROQ_KEY:
-        return "⚠️ GROQ_API_KEY not found! Add in Render Environment: GROQ_API_KEY = gsk_... from https://console.groq.com/keys"
+        return "⚠️ GROQ_API_KEY not found! Add in Render Environment."
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
     models_to_try = ["openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-120b"]
 
-    format_type = random.choice([
-        "Use MARKDOWN TABLE for IDEATE and PROTOTYPE. Include image markdown for visual topics.",
-        "Use PARAGRAPH + BULLETS + TABLE mixed format.",
-        "Use TABLE for comparison and FLOWCHART with -> arrows."
-    ])
+    # --- FIX FOR BLURRED IMAGES: HD TEXTBOOK STYLE PROMPT ---
+    clean_q = question.replace(" ", "%20")
+    # HD parameters: flux model + enhance + high quality + white background
+    hd_image_prompt = f"{question} educational textbook diagram, highly detailed, labeled, white background, 4k, scientific illustration, accurate anatomy"
+    encoded_prompt = urllib.parse.quote(hd_image_prompt)
+    hd_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?model=flux&width=1024&height=1024&enhance=true&nologo=true&seed={random.randint(1,99999)}"
 
-    image_url = f"https://image.pollinations.ai/prompt/{urllib.parse.quote(question + ' educational diagram colorful labeled 4k')}"
+    # Also backup real Wikimedia educational image search (more accurate)
+    wiki_search_url = f"https://commons.wikimedia.org/wiki/Special:Search?search={urllib.parse.quote(question + ' diagram')}&go=Go"
 
     for model_name in models_to_try:
         try:
             payload = {
                 "model": model_name,
                 "messages": [
-                    {"role": "system", "content": f"{STRATEGY_PROMPT}\nFORMAT: {format_type}\nFor image use:![{question}]({image_url})"},
-                    {"role": "user", "content": f"Question: {question}. Give rich formatted unique answer."}
+                    {"role": "system", "content": f"""{STRATEGY_PROMPT}
+IMAGE RULE - VERY IMPORTANT:
+If topic is visual (heart, cell, atom, solar system, water cycle, etc.) you MUST include this EXACT HD image markdown at start of answer:
+
+![{question} - HD Diagram]({hd_image_url})
+
+After image, add note: *HD Diagram generated - For textbook accurate version, see [Wikimedia Commons]({wiki_search_url})*
+
+Use markdown table for comparison topics.
+"""},
+                    {"role": "user", "content": f"Question: {question}. Give rich formatted answer with HD diagram image first, then table."}
                 ],
-                "temperature": 0.9, "max_tokens": 2000
+                "temperature": 0.85,
+                "max_tokens": 2000
             }
             r = requests.post(url, headers=headers, json=payload, timeout=30)
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
         except: continue
 
-    return "❌ Groq Error. Check GROQ_API_KEY in Render."
+    return "❌ Groq Error. Check API Key."
 
 @app.route("/")
 def home():
