@@ -36,21 +36,20 @@ limiter = Limiter(get_remote_address, app=app, default_limits=["200 per hour"], 
 
 def ask_groq(question):
     if not GROQ_KEY:
-        return "⚠️ GROQ_API_KEY not found! Add in Render Environment."
+        return "⚠️ GROQ_API_KEY not found!"
 
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-    models_to_try = ["openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-120b"]
+    models_to_try = ["openai/gpt-oss-20b", "llama-3.1-8b-instant"]
 
-    # --- FIX FOR BLURRED IMAGES: HD TEXTBOOK STYLE PROMPT ---
-    clean_q = question.replace(" ", "%20")
-    # HD parameters: flux model + enhance + high quality + white background
-    hd_image_prompt = f"{question} educational textbook diagram, highly detailed, labeled, white background, 4k, scientific illustration, accurate anatomy"
-    encoded_prompt = urllib.parse.quote(hd_image_prompt)
-    hd_image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?model=flux&width=1024&height=1024&enhance=true&nologo=true&seed={random.randint(1,99999)}"
+    # --- NEW: NO-TEXT IMAGE PROMPT - Solves gibberish labels ---
+    no_text_prompt = f"{question} anatomy, clean scientific illustration, NO TEXT, NO LABELS, NO WORDS, white background, high detail, 4k, textbook style"
+    encoded = urllib.parse.quote(no_text_prompt)
+    # Clean image without any writing
+    clean_image_url = f"https://image.pollinations.ai/prompt/{encoded}?model=flux&width=1024&height=1024&enhance=true&nologo=true&seed={random.randint(1,99999)}"
 
-    # Also backup real Wikimedia educational image search (more accurate)
-    wiki_search_url = f"https://commons.wikimedia.org/wiki/Special:Search?search={urllib.parse.quote(question + ' diagram')}&go=Go"
+    # For accurate labeled diagrams, use real Wikimedia image (optional fallback)
+    # Groq will also provide labels in table, so no need for text in image
 
     for model_name in models_to_try:
         try:
@@ -58,26 +57,26 @@ def ask_groq(question):
                 "model": model_name,
                 "messages": [
                     {"role": "system", "content": f"""{STRATEGY_PROMPT}
-IMAGE RULE - VERY IMPORTANT:
-If topic is visual (heart, cell, atom, solar system, water cycle, etc.) you MUST include this EXACT HD image markdown at start of answer:
 
-![{question} - HD Diagram]({hd_image_url})
+CRITICAL IMAGE RULE TO FIX BLURRY TEXT:
+- Generate image WITHOUT any text/labels/words inside. Prompt is: {no_text_prompt}
+- Image markdown to use:![{question} Clean Diagram]({clean_image_url})
+- Then IMMEDIATELY after image, create a markdown table for labels:
+| Label No | Part Name | Function |
+| 1 |... |... |
+This way image is clear and labels are readable in table, not gibberish in image.
 
-After image, add note: *HD Diagram generated - For textbook accurate version, see [Wikimedia Commons]({wiki_search_url})*
-
-Use markdown table for comparison topics.
+If question is comparison like mitosis vs meiosis, skip image and give comparison table directly.
 """},
-                    {"role": "user", "content": f"Question: {question}. Give rich formatted answer with HD diagram image first, then table."}
+                    {"role": "user", "content": f"Question: {question}. Give clean diagram (no text in image) + label table."}
                 ],
-                "temperature": 0.85,
-                "max_tokens": 2000
+                "temperature": 0.8, "max_tokens": 2200
             }
             r = requests.post(url, headers=headers, json=payload, timeout=30)
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
         except: continue
-
-    return "❌ Groq Error. Check API Key."
+    return "❌ Groq Error."
 
 @app.route("/")
 def home():
