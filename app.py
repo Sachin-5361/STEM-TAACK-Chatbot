@@ -75,8 +75,8 @@ def log_query(q, ip, expert=""):
     if usage_data["today_date"]!= today:
         usage_data["today_date"] = today
         usage_data["today"] = 0
-    usage_data["total"] +=1
-    usage_data["today"] +=1
+    usage_data["total"] +=0
+    usage_data["today"] +=0
     usage_data["logs"].insert(0, {"time": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "question": q[:100], "ip": ip, "expert": expert})
     usage_data["logs"] = usage_data["logs"][:100]
     save_stats()
@@ -149,22 +149,22 @@ footer{{background:#0f172a;color:#94a3b8;text-align:center;padding:16px;font-siz
 </style></head>
 <body>
 <header>
-<h2 style="margin:0">DT4STEM Guru AI 🤖 <span class="badge">Expert Access</span></h2>
+<h2 style="margin:0">DT4STEM Guru AI 🤖 
 <p style="margin:8px 0 4px 0">Design Thinking for STEM Education</p>
-<small>© S Sachinkumar & Prof.G.R.Angadi, CUK | Expert: {expert_name}</small>
+<small>© S Sachinkumar & Prof.G.R.Angadi, CUK 
 </header>
 <div id=box>
-<input id='q' placeholder='Example: human heart, photosynthesis...'>
+<input id='q' placeholder='Example: Human heart,Friction,Hydrocarbons,Photosynthesis...'>
 <button onclick='ask()'>🚀 Ask AI Coach</button>
 <div id='ans'>
 <b>About DT4STEM Guru AI</b><br><br>
-DT4STEM Guru is an AI-powered pedagogical coach for secondary STEM teachers. Developed by <b>S Sachinkumar (Research Scholar)</b> and <b>Prof. G.R. Angadi, CUK</b>.<br><br>
+DT4STEM Guru is an AI-powered pedagogical coach for secondary STEM teachers.As a Part of Research This is Developed by <b>S Sachinkumar (Research Scholar)</b> and <b>Prof. G.R. Angadi, CUK</b>.<br><br>
 
 <i>Enter topic above to generate lesson plan.</i>
 </div>
 </div>
 <footer>COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, Dept. of Education, Central University of Karnataka<br>
-<a href="/feedback?expert_key={EXPERT_PASSWORD}" style="color:#38bdf8">Give Feedback</a> 
+
 </footer>
 <script>
 const EXPERT = "{expert_name}";
