@@ -159,13 +159,12 @@ footer{{background:#0f172a;color:#94a3b8;text-align:center;padding:16px;font-siz
 <div id='ans'>
 <b>About DT4STEM Guru AI</b><br><br>
 DT4STEM Guru is an AI-powered pedagogical coach for secondary STEM teachers. Developed by <b>S Sachinkumar (Research Scholar)</b> and <b>Prof. G.R. Angadi, CUK</b>.<br><br>
-System uses <b>Design Thinking (Empathize, Define, Ideate, Prototype, Test)</b> with 1000+ EdTech tools.<br><br>
-<b>Expert Review Mode:</b> Your feedback is being recorded for research validation.<br>
+
 <i>Enter topic above to generate lesson plan.</i>
 </div>
 </div>
 <footer>COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, Dept. of Education, Central University of Karnataka<br>
-<a href="/feedback?expert_key={EXPERT_PASSWORD}" style="color:#38bdf8">Give Feedback</a> | Expert Access Only
+<a href="/feedback?expert_key={EXPERT_PASSWORD}" style="color:#38bdf8">Give Feedback</a> 
 </footer>
 <script>
 const EXPERT = "{expert_name}";
