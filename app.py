@@ -1,5 +1,5 @@
 # COPYRIGHT © 2026 S Sachinkumar & Prof.G.R.Angadi, CUK
-
+# EXPERT PRIVATE MODE - Only experts with password can access
 import os, requests, json, datetime
 from collections import Counter
 from flask import Flask, request, jsonify, render_template_string, make_response, redirect
@@ -16,7 +16,7 @@ GOOGLE_SHEET_URL = os.environ.get("GOOGLE_SHEET_URL", "").strip()
 SHEET_WEBHOOK = os.environ.get("SHEET_WEBHOOK_URL", "").strip()
 
 STATS_FILE = "/tmp/dt4stem_stats.json"
-usage_data = {"total": 0, "today": 0, "today_date": str(datetime.date.today()), "logs": [], "visits": 0}
+usage_data = {"total": 0, "today": 0, "today_date": str(datetime.date.today()), "logs": []}
 
 if os.path.exists(STATS_FILE):
     try:
@@ -28,46 +28,34 @@ def save_stats():
         with open(STATS_FILE, 'w') as f: json.dump(usage_data, f)
     except: pass
 
-# --- ONLY THIS FUNCTION IS UPDATED - REST SAME ---
-def detect_category(question):
-    q = question.lower()
-    if any(w in q for w in ["heart","cell","photo","human","bio","plant","life"]): return "Biology"
-    if any(w in q for w in ["newton","force","light","heat","motion","energy"]): return "Physics"
-    if any(w in q for w in ["acid","atom","mole","chemical","reaction"]): return "Chemistry"
-    if any(w in q for w in ["math","algebra","geometry","number","equation"]): return "Mathematics"
-    if any(w in q for w in ["code","robot","ai","computer"]): return "Technology"
+# --- UPDATED ONLY FOR SHEET COLUMNS - Event Type, Category, Active Strategy, Total Visits, Total Questions ---
+def detect_category(q):
+    ql = q.lower()
+    if any(x in ql for x in ["heart","cell","photo","bio","plant","human"]): return "Biology"
+    if any(x in ql for x in ["newton","force","light","heat","motion"]): return "Physics"
+    if any(x in ql for x in ["acid","atom","chemical","reaction"]): return "Chemistry"
+    if any(x in ql for x in ["math","algebra","geometry"]): return "Mathematics"
     return "General STEM"
 
-def log_to_google_sheet(q, ip, expert_name="", event_type="Question Asked"):
+def log_to_google_sheet(q, ip, expert_name=""):
     try:
         webhook = GOOGLE_SHEET_URL or SHEET_WEBHOOK
         if not webhook: return
-        if "script.google.com" not in webhook and "http" not in webhook:
-            return
-
-        # Auto-detect for your sheet columns
-        category = detect_category(q)
-        active_strategy = "Design Thinking - 5 Steps" # Fixed as per your system
-        total_visits = usage_data.get("visits", 0) + usage_data.get("total", 0)
-        total_questions = usage_data.get("total", 0)
-
-        # Payload must match your Sheet Header names exactly
-        payload = {
-            "timestamp": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
-            "event_type": event_type, # Event Type
-            "category": category, # Category
-            "active_strategy": active_strategy, # Active Strategy
-            "total_visits": total_visits, # Total Visits
-            "total_questions": total_questions, # Total Questions
-            "question": q, # Question column if exists
-            "ip": ip,
-            "expert": expert_name,
-            "date": str(datetime.date.today())
-        }
-        requests.post(webhook, json=payload, timeout=5)
-        print(f"Sheet Logged: {payload}")
-    except Exception as e:
-        print(f"Sheet log failed: {e}")
+        if "script.google.com" in webhook or "http" in webhook:
+            payload = {
+                "timestamp": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+                "event_type": "Question Asked",
+                "category": detect_category(q),
+                "active_strategy": "Design Thinking - 5 Steps",
+                "total_visits": usage_data.get("total", 0) + usage_data.get("today", 0),
+                "total_questions": usage_data.get("total", 0),
+                "question": q,
+                "ip": ip,
+                "expert": expert_name,
+                "date": str(datetime.date.today())
+            }
+            requests.post(webhook, json=payload, timeout=5)
+    except: pass
 
 def log_query(q, ip, expert=""):
     global usage_data
@@ -80,9 +68,8 @@ def log_query(q, ip, expert=""):
     usage_data["logs"].insert(0, {"time": datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S"), "question": q[:100], "ip": ip, "expert": expert})
     usage_data["logs"] = usage_data["logs"][:100]
     save_stats()
-    log_to_google_sheet(q, ip, expert, "Question Asked")
+    log_to_google_sheet(q, ip, expert)
 
-# --- REST ALL SAME AS YOUR FINAL CODE ---
 STRATEGY_PROMPT = """You are SrujanaSTEM AI... Follow 5 Design Thinking steps: 1.EMPATHIZE 2.DEFINE 3.IDEATE Table 4.PROTOTYPE Table 5.TEST Table. No images."""
 
 limiter = Limiter(get_remote_address, app=app, default_limits=["200 per hour"], storage_uri="memory://")
@@ -99,14 +86,17 @@ def ask_groq(question):
         except: continue
     return "❌ Groq Error."
 
+# --- EXPERT AUTH CHECK ---
 def is_expert_authorized():
+    # Check cookie or query param
     pwd = request.args.get("expert_key", "") or request.cookies.get("expert_auth", "")
     return pwd == EXPERT_PASSWORD
 
 @app.route("/")
 def home():
-    global usage_data
+    # IF PRIVATE MODE IS ON - Check expert password
     if not is_expert_authorized():
+        # Show login page for experts only
         return """
         <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
         <style>body{font-family:Arial;max-width:420px;margin:80px auto;background:#f6f7f9;padding:20px;text-align:center}
@@ -125,11 +115,8 @@ def home():
         <p style="font-size:11px;color:gray;margin-top:15px">© S Sachinkumar & Prof.G.R.Angadi, CUK<br>Contact admin for access key</p>
         </div></body></html>
         """
-    # Count visit for Total Visits column
-    usage_data["visits"] = usage_data.get("visits",0)+1
-    save_stats()
-    log_to_google_sheet("Page Visit", request.remote_addr, request.args.get("expert_name",""), "Page Visit")
 
+    # If authorized - show main app
     expert_name = request.args.get("expert_name", "Expert")
     html = f"""
 <!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -179,12 +166,13 @@ async function ask(){{
  }}catch(e){{ document.getElementById('ans').innerHTML='Error: '+e; }}
 }}
 document.getElementById('q').addEventListener('keypress', function(e){{ if(e.key==='Enter'){{ask();}} }});
+// Save auth cookie
 document.cookie = "expert_auth={EXPERT_PASSWORD}; path=/; max-age=86400";
 </script>
 </body></html>
 """
     resp = make_response(render_template_string(html))
-    resp.set_cookie("expert_auth", EXPERT_PASSWORD, max_age=86400)
+    resp.set_cookie("expert_auth", EXPERT_PASSWORD, max_age=86400) # 1 day
     return resp
 
 @app.route("/chat")
