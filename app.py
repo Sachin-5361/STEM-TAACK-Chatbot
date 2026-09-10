@@ -48,8 +48,8 @@ def log_to_google_sheet(q, ip, expert_name="", event_type="Question Asked"):
         # Auto-detect for your sheet columns
         category = detect_category(q)
         active_strategy = "Design Thinking - 5 Steps" # Fixed as per your system
-        total_visits = usage_data.get("visits", 1) + usage_data.get("total", 1)
-        total_questions = usage_data.get("total", 1)
+        total_visits = usage_data.get("visits", 0) + usage_data.get("total", 0)
+        total_questions = usage_data.get("total", 0)
 
         # Payload must match your Sheet Header names exactly
         payload = {
@@ -126,7 +126,7 @@ def home():
         </div></body></html>
         """
     # Count visit for Total Visits column
-    usage_data["visits"] = usage_data.get("visits",1)+0
+    usage_data["visits"] = usage_data.get("visits",0)+1
     save_stats()
     log_to_google_sheet("Page Visit", request.remote_addr, request.args.get("expert_name",""), "Page Visit")
 
